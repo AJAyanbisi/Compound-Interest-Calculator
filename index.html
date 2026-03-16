@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compound Interest Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f9f9f7; color: #1a1a18;
+      padding: 2rem 1rem; min-height: 100vh;
+    }
+    .container { max-width: 680px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+    .subtitle { font-size: 14px; color: #5f5e5a; margin-bottom: 2rem; }
+
+    .currency-row { margin-bottom: 1.75rem; }
+    .currency-search-wrap { position: relative; }
+    #currency-search {
+      width: 100%; font-size: 15px; padding: 8px 10px;
+      border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px;
+      background: #fff; color: #1a1a18; outline: none; cursor: pointer;
+    }
+    #currency-search:focus { border-color: rgba(0,0,0,0.4); }
+    #currency-dropdown {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 0.5px solid rgba(0,0,0,0.18); border-radius: 8px;
+      max-height: 220px; overflow-y: auto; z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    #currency-dropdown.open { display: block; }
+    .cur-option {
+      padding: 8px 12px; font-size: 13px; cursor: pointer; color: #1a1a18;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cur-option:hover { background: #f1efe8; }
+    .cur-option.selected { background: #f1efe8; font-weight: 500; }
+    .cur-option .cur-sub { color: #5f5e5a; font-size: 12px; }
+    .no-results { padding: 10px 12px; font-size: 13px; color: #5f5e5a; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.75rem; }
+    label.field-label { font-size: 13px; color: #5f5e5a; display: block; margin-bottom: 6px; }
+    .input-wrap { position: relative; }
+    .input-sym {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 14px; color: #5f5e5a; pointer-events: none; user-select: none;
+    }
+    input[type="number"] {
+      width: 100%; font-size: 15px; padding: 8px 10px 8px 28px;
+      border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px;
+      background: #fff; color: #1a1a18; outline: none;
+    }
+    input[type="number"]:focus { border-color: rgba(0,0,0,0.4); }
+
+    .slider-row { margin-bottom: 1.5rem; }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .slider-header span:first-child { font-size: 13px; color: #5f5e5a; }
+    .slider-header span:last-child { font-size: 15px; font-weight: 500; }
+    input[type="range"] { width: 100%; accent-color: #1D9E75; height: 4px; cursor: pointer; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 2rem; }
+    .metric-card { background: #f1efe8; border-radius: 8px; padding: 1rem; text-align: center; }
+    .metric-card .mlabel { font-size: 12px; color: #5f5e5a; margin-bottom: 4px; }
+    .metric-card .mval { font-size: 18px; font-weight: 500; }
+    .metric-card .mval.green { color: #0f6e56; }
+
+    .legend { display: flex; gap: 16px; margin-bottom: 8px; font-size: 12px; color: #5f5e5a; }
+    .legend span { display: flex; align-items: center; gap: 4px; }
+    .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .chart-wrap { position: relative; width: 100%; height: 280px; }
+
+    .rule72 {
+      margin-top: 1.75rem; padding: 1rem 1.25rem;
+      background: #fff; border: 0.5px solid rgba(0,0,0,0.12);
+      border-radius: 12px; font-size: 13px; color: #5f5e5a; line-height: 1.6;
+    }
+    .rule72 strong { font-weight: 500; color: #1a1a18; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Compound Interest Calculator</h1>
+  <p class="subtitle">See how your savings grow over time with the power of compound interest. Enter your details below to get started.</p>
+
+  <div class="currency-row">
+    <label class="field-label" for="currency-search">Currency</label>
+    <div class="currency-search-wrap">
+      <input type="text" id="currency-search" placeholder="Search currency..." autocomplete="off" />
+      <div id="currency-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <label class="field-label" for="principal">Starting amount</label>
+      <div class="input-wrap">
+        <span class="input-sym" id="sym1">£</span>
+        <input type="number" id="principal" value="1000" min="100" max="100000" step="100" />
+      </div>
+    </div>
+    <div>
+      <label class="field-label" for="monthly">Monthly contribution</label>
+      <div class="input-wrap">
+        <span class="input-sym" id="sym2">£</span>
+        <input type="number" id="monthly" value="100" min="0" max="5000" step="50" />
+      </div>
+    </div>
+  </div>
+
+  <div class="slider-row">
+    <div class="slider-header">
+      <span>Annual interest rate</span>
+      <span id="rate-out">7.0%</span>
+    </div>
+    <input type="range" id="rate" min="1" max="30" value="7" step="0.5" />
+  </div>
+
+  <div class="slider-row">
+    <div class="slider-header">
+      <span>Time period</span>
+      <span id="years-out">20 years</span>
+    </div>
+    <input type="range" id="years" min="1" max="50" value="20" step="1" />
+  </div>
+
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="mlabel">Total invested</div>
+      <div class="mval" id="invested">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="mlabel">Interest earned</div>
+      <div class="mval green" id="interest-earned">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="mlabel">Final value</div>
+      <div class="mval" id="final">—</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:#888780;"></span>Amount invested</span>
+    <span><span class="swatch" style="background:#1D9E75;"></span>Interest earned</span>
+  </div>
+
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <div class="rule72" id="rule72tip"></div>
+
+  <footer style="margin-top: 2.5rem; padding-top: 1.25rem; border-top: 0.5px solid rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #5f5e5a;">
+    <span>&copy; <span id="copy-year"></span> Compound Interest Calculator</span>
+    <span>Tool built by <a href="https://ayanbisi.com/" target="_blank" rel="noopener noreferrer" style="color: #1a1a18; text-decoration: underline; text-underline-offset: 2px;">Akorede J. Ayanbisi</a></span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CURRENCIES = [
+  {code:'GBP',name:'British Pound',symbol:'£',locale:'en-GB'},
+  {code:'USD',name:'US Dollar',symbol:'$',locale:'en-US'},
+  {code:'EUR',name:'Euro',symbol:'€',locale:'de-DE'},
+  {code:'JPY',name:'Japanese Yen',symbol:'¥',locale:'ja-JP'},
+  {code:'CHF',name:'Swiss Franc',symbol:'Fr',locale:'de-CH'},
+  {code:'AUD',name:'Australian Dollar',symbol:'A$',locale:'en-AU'},
+  {code:'CAD',name:'Canadian Dollar',symbol:'C$',locale:'en-CA'},
+  {code:'SEK',name:'Swedish Krona',symbol:'kr',locale:'sv-SE'},
+  {code:'NOK',name:'Norwegian Krone',symbol:'kr',locale:'nb-NO'},
+  {code:'DKK',name:'Danish Krone',symbol:'kr',locale:'da-DK'},
+  {code:'NZD',name:'New Zealand Dollar',symbol:'NZ$',locale:'en-NZ'},
+  {code:'SGD',name:'Singapore Dollar',symbol:'S$',locale:'en-SG'},
+  {code:'HKD',name:'Hong Kong Dollar',symbol:'HK$',locale:'zh-HK'},
+  {code:'CNY',name:'Chinese Yuan',symbol:'¥',locale:'zh-CN'},
+  {code:'INR',name:'Indian Rupee',symbol:'₹',locale:'en-IN'},
+  {code:'KRW',name:'South Korean Won',symbol:'₩',locale:'ko-KR'},
+  {code:'BRL',name:'Brazilian Real',symbol:'R$',locale:'pt-BR'},
+  {code:'MXN',name:'Mexican Peso',symbol:'$',locale:'es-MX'},
+  {code:'ZAR',name:'South African Rand',symbol:'R',locale:'en-ZA'},
+  {code:'TRY',name:'Turkish Lira',symbol:'₺',locale:'tr-TR'},
+  {code:'RUB',name:'Russian Ruble',symbol:'₽',locale:'ru-RU'},
+  {code:'PLN',name:'Polish Zloty',symbol:'zl',locale:'pl-PL'},
+  {code:'CZK',name:'Czech Koruna',symbol:'Kc',locale:'cs-CZ'},
+  {code:'HUF',name:'Hungarian Forint',symbol:'Ft',locale:'hu-HU'},
+  {code:'RON',name:'Romanian Leu',symbol:'lei',locale:'ro-RO'},
+  {code:'BGN',name:'Bulgarian Lev',symbol:'lv',locale:'bg-BG'},
+  {code:'ISK',name:'Icelandic Krona',symbol:'kr',locale:'is-IS'},
+  {code:'AED',name:'UAE Dirham',symbol:'AED',locale:'ar-AE'},
+  {code:'SAR',name:'Saudi Riyal',symbol:'SAR',locale:'ar-SA'},
+  {code:'QAR',name:'Qatari Riyal',symbol:'QAR',locale:'ar-QA'},
+  {code:'KWD',name:'Kuwaiti Dinar',symbol:'KWD',locale:'ar-KW'},
+  {code:'BHD',name:'Bahraini Dinar',symbol:'BHD',locale:'ar-BH'},
+  {code:'OMR',name:'Omani Rial',symbol:'OMR',locale:'ar-OM'},
+  {code:'JOD',name:'Jordanian Dinar',symbol:'JOD',locale:'ar-JO'},
+  {code:'EGP',name:'Egyptian Pound',symbol:'EGP',locale:'ar-EG'},
+  {code:'ILS',name:'Israeli Shekel',symbol:'₪',locale:'he-IL'},
+  {code:'PKR',name:'Pakistani Rupee',symbol:'Rs',locale:'ur-PK'},
+  {code:'BDT',name:'Bangladeshi Taka',symbol:'Tk',locale:'bn-BD'},
+  {code:'LKR',name:'Sri Lankan Rupee',symbol:'Rs',locale:'si-LK'},
+  {code:'NPR',name:'Nepalese Rupee',symbol:'Rs',locale:'ne-NP'},
+  {code:'THB',name:'Thai Baht',symbol:'฿',locale:'th-TH'},
+  {code:'IDR',name:'Indonesian Rupiah',symbol:'Rp',locale:'id-ID'},
+  {code:'MYR',name:'Malaysian Ringgit',symbol:'RM',locale:'ms-MY'},
+  {code:'PHP',name:'Philippine Peso',symbol:'₱',locale:'en-PH'},
+  {code:'VND',name:'Vietnamese Dong',symbol:'₫',locale:'vi-VN'},
+  {code:'TWD',name:'Taiwan Dollar',symbol:'NT$',locale:'zh-TW'},
+  {code:'KZT',name:'Kazakhstani Tenge',symbol:'KZT',locale:'kk-KZ'},
+  {code:'GEL',name:'Georgian Lari',symbol:'GEL',locale:'ka-GE'},
+  {code:'AMD',name:'Armenian Dram',symbol:'AMD',locale:'hy-AM'},
+  {code:'AZN',name:'Azerbaijani Manat',symbol:'AZN',locale:'az-AZ'},
+  {code:'UAH',name:'Ukrainian Hryvnia',symbol:'UAH',locale:'uk-UA'},
+  {code:'BYN',name:'Belarusian Ruble',symbol:'Br',locale:'be-BY'},
+  {code:'NGN',name:'Nigerian Naira',symbol:'₦',locale:'en-NG'},
+  {code:'GHS',name:'Ghanaian Cedi',symbol:'GHS',locale:'en-GH'},
+  {code:'KES',name:'Kenyan Shilling',symbol:'KSh',locale:'en-KE'},
+  {code:'UGX',name:'Ugandan Shilling',symbol:'USh',locale:'en-UG'},
+  {code:'TZS',name:'Tanzanian Shilling',symbol:'TSh',locale:'en-TZ'},
+  {code:'ETB',name:'Ethiopian Birr',symbol:'Br',locale:'am-ET'},
+  {code:'XOF',name:'West African CFA Franc',symbol:'Fr',locale:'fr-SN'},
+  {code:'XAF',name:'Central African CFA Franc',symbol:'Fr',locale:'fr-CM'},
+  {code:'MAD',name:'Moroccan Dirham',symbol:'MAD',locale:'ar-MA'},
+  {code:'DZD',name:'Algerian Dinar',symbol:'DZD',locale:'ar-DZ'},
+  {code:'TND',name:'Tunisian Dinar',symbol:'TND',locale:'ar-TN'},
+  {code:'MZN',name:'Mozambican Metical',symbol:'MT',locale:'pt-MZ'},
+  {code:'ZMW',name:'Zambian Kwacha',symbol:'ZK',locale:'en-ZM'},
+  {code:'BWP',name:'Botswanan Pula',symbol:'P',locale:'en-BW'},
+  {code:'MUR',name:'Mauritian Rupee',symbol:'Rs',locale:'en-MU'},
+  {code:'NAD',name:'Namibian Dollar',symbol:'$',locale:'en-NA'},
+  {code:'NGN',name:'Nigerian Naira',symbol:'₦',locale:'en-NG'},
+  {code:'AOA',name:'Angolan Kwanza',symbol:'Kz',locale:'pt-AO'},
+  {code:'RWF',name:'Rwandan Franc',symbol:'Fr',locale:'rw-RW'},
+  {code:'COP',name:'Colombian Peso',symbol:'$',locale:'es-CO'},
+  {code:'ARS',name:'Argentine Peso',symbol:'$',locale:'es-AR'},
+  {code:'CLP',name:'Chilean Peso',symbol:'$',locale:'es-CL'},
+  {code:'PEN',name:'Peruvian Sol',symbol:'S/',locale:'es-PE'},
+  {code:'UYU',name:'Uruguayan Peso',symbol:'$',locale:'es-UY'},
+  {code:'PYG',name:'Paraguayan Guarani',symbol:'Gs',locale:'es-PY'},
+  {code:'BOB',name:'Bolivian Boliviano',symbol:'Bs.',locale:'es-BO'},
+  {code:'GTQ',name:'Guatemalan Quetzal',symbol:'Q',locale:'es-GT'},
+  {code:'HNL',name:'Honduran Lempira',symbol:'L',locale:'es-HN'},
+  {code:'NIO',name:'Nicaraguan Cordoba',symbol:'C$',locale:'es-NI'},
+  {code:'CRC',name:'Costa Rican Colon',symbol:'₡',locale:'es-CR'},
+  {code:'DOP',name:'Dominican Peso',symbol:'$',locale:'es-DO'},
+  {code:'JMD',name:'Jamaican Dollar',symbol:'$',locale:'en-JM'},
+  {code:'TTD',name:'Trinidad & Tobago Dollar',symbol:'$',locale:'en-TT'},
+  {code:'XCD',name:'East Caribbean Dollar',symbol:'$',locale:'en-AG'},
+  {code:'BZD',name:'Belize Dollar',symbol:'BZ$',locale:'en-BZ'},
+  {code:'GYD',name:'Guyanese Dollar',symbol:'$',locale:'en-GY'},
+  {code:'FJD',name:'Fijian Dollar',symbol:'$',locale:'en-FJ'},
+  {code:'PGK',name:'Papua New Guinean Kina',symbol:'K',locale:'en-PG'},
+  {code:'AFN',name:'Afghan Afghani',symbol:'Af',locale:'ps-AF'},
+  {code:'IRR',name:'Iranian Rial',symbol:'IRR',locale:'fa-IR'},
+  {code:'IQD',name:'Iraqi Dinar',symbol:'IQD',locale:'ar-IQ'},
+  {code:'YER',name:'Yemeni Rial',symbol:'YER',locale:'ar-YE'},
+  {code:'LBP',name:'Lebanese Pound',symbol:'LBP',locale:'ar-LB'},
+  {code:'MOP',name:'Macanese Pataca',symbol:'P',locale:'zh-MO'},
+  {code:'MVR',name:'Maldivian Rufiyaa',symbol:'Rf',locale:'dv-MV'},
+  {code:'BTN',name:'Bhutanese Ngultrum',symbol:'Nu',locale:'dz-BT'},
+  {code:'MNT',name:'Mongolian Tugrik',symbol:'MNT',locale:'mn-MN'},
+  {code:'KGS',name:'Kyrgystani Som',symbol:'KGS',locale:'ky-KG'},
+  {code:'TJS',name:'Tajikistani Somoni',symbol:'SM',locale:'tg-TJ'},
+  {code:'TMT',name:'Turkmenistani Manat',symbol:'T',locale:'tk-TM'},
+  {code:'UZS',name:'Uzbekistani Som',symbol:'UZS',locale:'uz-UZ'},
+  {code:'MKD',name:'Macedonian Denar',symbol:'MKD',locale:'mk-MK'},
+  {code:'ALL',name:'Albanian Lek',symbol:'L',locale:'sq-AL'},
+  {code:'BAM',name:'Bosnian Mark',symbol:'KM',locale:'bs-BA'},
+  {code:'RSD',name:'Serbian Dinar',symbol:'din.',locale:'sr-RS'},
+  {code:'HRK',name:'Croatian Kuna',symbol:'kn',locale:'hr-HR'},
+  {code:'MDL',name:'Moldovan Leu',symbol:'L',locale:'ro-MD'},
+  {code:'MKD',name:'Macedonian Denar',symbol:'MKD',locale:'mk-MK'},
+  {code:'SOS',name:'Somali Shilling',symbol:'Sh',locale:'so-SO'},
+  {code:'SDG',name:'Sudanese Pound',symbol:'SDG',locale:'ar-SD'},
+  {code:'LYD',name:'Libyan Dinar',symbol:'LYD',locale:'ar-LY'},
+  {code:'SYP',name:'Syrian Pound',symbol:'SYP',locale:'ar-SY'},
+  {code:'KPW',name:'North Korean Won',symbol:'₩',locale:'ko-KP'},
+  {code:'MMK',name:'Myanmar Kyat',symbol:'K',locale:'my-MM'},
+  {code:'HTG',name:'Haitian Gourde',symbol:'G',locale:'fr-HT'},
+  {code:'CUP',name:'Cuban Peso',symbol:'$',locale:'es-CU'},
+  {code:'SRD',name:'Surinamese Dollar',symbol:'$',locale:'nl-SR'},
+  {code:'MGA',name:'Malagasy Ariary',symbol:'Ar',locale:'mg-MG'},
+  {code:'GMD',name:'Gambian Dalasi',symbol:'D',locale:'en-GM'},
+  {code:'SLL',name:'Sierra Leonean Leone',symbol:'Le',locale:'en-SL'},
+  {code:'LRD',name:'Liberian Dollar',symbol:'$',locale:'en-LR'},
+  {code:'MWK',name:'Malawian Kwacha',symbol:'MK',locale:'en-MW'},
+  {code:'ZWL',name:'Zimbabwean Dollar',symbol:'$',locale:'en-ZW'},
+  {code:'DJF',name:'Djiboutian Franc',symbol:'Fr',locale:'fr-DJ'},
+  {code:'CDF',name:'Congolese Franc',symbol:'Fr',locale:'fr-CD'},
+  {code:'BIF',name:'Burundian Franc',symbol:'Fr',locale:'fr-BI'},
+  {code:'SZL',name:'Swazi Lilangeni',symbol:'L',locale:'en-SZ'},
+  {code:'LSL',name:'Lesotho Loti',symbol:'L',locale:'en-LS'},
+  {code:'ERN',name:'Eritrean Nakfa',symbol:'Nfk',locale:'ti-ER'},
+  {code:'WST',name:'Samoan Tala',symbol:'T',locale:'sm-WS'},
+  {code:'TOP',name:'Tongan Paanga',symbol:'T$',locale:'to-TO'},
+  {code:'VUV',name:'Vanuatu Vatu',symbol:'Vt',locale:'bi-VU'},
+  {code:'SBD',name:'Solomon Islands Dollar',symbol:'$',locale:'en-SB'},
+  {code:'KHR',name:'Cambodian Riel',symbol:'KHR',locale:'km-KH'},
+  {code:'LAK',name:'Lao Kip',symbol:'LAK',locale:'lo-LA'},
+  {code:'BND',name:'Brunei Dollar',symbol:'$',locale:'ms-BN'},
+  {code:'SCR',name:'Seychellois Rupee',symbol:'Rs',locale:'en-SC'},
+  {code:'CVE',name:'Cape Verdean Escudo',symbol:'$',locale:'pt-CV'},
+  {code:'STN',name:'Sao Tomean Dobra',symbol:'Db',locale:'pt-ST'},
+  {code:'GNF',name:'Guinean Franc',symbol:'Fr',locale:'fr-GN'},
+  {code:'KMF',name:'Comorian Franc',symbol:'Fr',locale:'ar-KM'},
+  {code:'MRU',name:'Mauritanian Ouguiya',symbol:'UM',locale:'ar-MR'},
+  {code:'SHP',name:'Saint Helena Pound',symbol:'£',locale:'en-SH'},
+  {code:'FKP',name:'Falkland Islands Pound',symbol:'£',locale:'en-FK'},
+  {code:'GIP',name:'Gibraltar Pound',symbol:'£',locale:'en-GI'},
+  {code:'JEP',name:'Jersey Pound',symbol:'£',locale:'en-JE'},
+  {code:'GGP',name:'Guernsey Pound',symbol:'£',locale:'en-GG'},
+  {code:'IMP',name:'Isle of Man Pound',symbol:'£',locale:'en-IM'},
+  {code:'AWG',name:'Aruban Florin',symbol:'f',locale:'nl-AW'},
+  {code:'ANG',name:'Netherlands Antillean Guilder',symbol:'f',locale:'nl-CW'},
+  {code:'KYD',name:'Cayman Islands Dollar',symbol:'$',locale:'en-KY'},
+  {code:'BMD',name:'Bermudian Dollar',symbol:'$',locale:'en-BM'},
+];
+
+const seen = new Set();
+const UNIQUE_CURRENCIES = CURRENCIES.filter(c => {
+  if (seen.has(c.code)) return false;
+  seen.add(c.code);
+  return true;
+});
+
+let chart;
+let currency = UNIQUE_CURRENCIES[0];
+
+const searchEl = document.getElementById('currency-search');
+const dropdown = document.getElementById('currency-dropdown');
+
+function renderDropdown(list) {
+  if (list.length === 0) {
+    dropdown.innerHTML = '<div class="no-results">No currencies found</div>';
+    return;
+  }
+  dropdown.innerHTML = list.map(c =>
+    `<div class="cur-option${c.code === currency.code ? ' selected' : ''}" data-code="${c.code}">
+      <span>${c.symbol} &nbsp;${c.name}</span>
+      <span class="cur-sub">${c.code}</span>
+    </div>`
+  ).join('');
+}
+
+function setCurrency(c) {
+  currency = c;
+  searchEl.value = c.symbol + '  ' + c.name + ' (' + c.code + ')';
+  document.getElementById('sym1').textContent = c.symbol;
+  document.getElementById('sym2').textContent = c.symbol;
+  dropdown.classList.remove('open');
+  calc();
+}
+
+searchEl.addEventListener('focus', () => {
+  searchEl.value = '';
+  renderDropdown(UNIQUE_CURRENCIES);
+  dropdown.classList.add('open');
+});
+
+searchEl.addEventListener('input', () => {
+  const q = searchEl.value.toLowerCase();
+  const filtered = UNIQUE_CURRENCIES.filter(c =>
+    c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
+  );
+  renderDropdown(filtered);
+  dropdown.classList.add('open');
+});
+
+dropdown.addEventListener('mousedown', e => {
+  const opt = e.target.closest('.cur-option');
+  if (!opt) return;
+  e.preventDefault();
+  const c = UNIQUE_CURRENCIES.find(x => x.code === opt.dataset.code);
+  if (c) setCurrency(c);
+});
+
+searchEl.addEventListener('blur', () => {
+  setTimeout(() => {
+    dropdown.classList.remove('open');
+    searchEl.value = currency.symbol + '  ' + currency.name + ' (' + currency.code + ')';
+  }, 150);
+});
+
+function fmt(n) {
+  return currency.symbol + Math.round(n).toLocaleString(currency.locale);
+}
+
+function fmtK(v) {
+  if (v >= 1000000) return currency.symbol + (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000) return currency.symbol + (v / 1000).toFixed(0) + 'k';
+  return currency.symbol + v;
+}
+
+function calc() {
+  const P = parseFloat(document.getElementById('principal').value) || 0;
+  const m = parseFloat(document.getElementById('monthly').value) || 0;
+  const r = parseFloat(document.getElementById('rate').value) / 100;
+  const Y = parseInt(document.getElementById('years').value);
+
+  document.getElementById('rate-out').textContent = parseFloat(document.getElementById('rate').value).toFixed(1) + '%';
+  document.getElementById('years-out').textContent = Y + ' year' + (Y === 1 ? '' : 's');
+
+  const labels = [], investedData = [], interestData = [];
+  for (let y = 0; y <= Y; y++) {
+    const months = y * 12, rM = r / 12;
+    let value = rM === 0 ? P + m * months
+      : P * Math.pow(1 + rM, months) + m * (Math.pow(1 + rM, months) - 1) / rM;
+    const totalInvested = P + m * months;
+    labels.push(y === 0 ? 'Now' : 'Yr ' + y);
+    investedData.push(Math.round(totalInvested));
+    interestData.push(Math.round(Math.max(0, value - totalInvested)));
+  }
+
+  const fi = investedData[investedData.length - 1];
+  const fe = interestData[interestData.length - 1];
+  document.getElementById('invested').textContent = fmt(fi);
+  document.getElementById('interest-earned').textContent = fmt(fe);
+  document.getElementById('final').textContent = fmt(fi + fe);
+
+  const doublingYears = (72 / (r * 100)).toFixed(1);
+  document.getElementById('rule72tip').innerHTML =
+    '<strong>Rule of 72:</strong> At ' + (r * 100).toFixed(1) + '% annual interest, your money doubles roughly every <strong>' + doublingYears + ' years</strong>.';
+
+  const skipEvery = Y > 30 ? 5 : Y > 15 ? 2 : 1;
+  const displayLabels = labels.map((l, i) => i % skipEvery === 0 ? l : '');
+
+  if (chart) {
+    chart.data.labels = displayLabels;
+    chart.data.datasets[0].data = investedData;
+    chart.data.datasets[1].data = interestData;
+    chart.options.plugins.tooltip.callbacks.label = ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y);
+    chart.options.scales.y.ticks.callback = v => fmtK(v);
+    chart.update();
+  } else {
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'bar',
+      data: {
+        labels: displayLabels,
+        datasets: [
+          {label:'Amount invested', data:investedData, backgroundColor:'#888780', stack:'stack'},
+          {label:'Interest earned', data:interestData, backgroundColor:'#1D9E75', stack:'stack'}
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {display: false},
+          tooltip: {callbacks: {label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y)}}
+        },
+        scales: {
+          x: {stacked:true, grid:{display:false}, ticks:{font:{size:11}}},
+          y: {stacked:true, grid:{color:'rgba(0,0,0,0.08)'}, ticks:{font:{size:11}, callback: v => fmtK(v)}}
+        }
+      }
+    });
+  }
+}
+
+['principal','monthly','rate','years'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calc);
+});
+
+setCurrency(UNIQUE_CURRENCIES[0]);
+document.getElementById('copy-year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
